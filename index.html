@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Daily Urdu</title>
+<link rel="manifest" href="./manifest.json">
+<meta name="theme-color" content="#FAFAF7">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Daily Urdu">
+<link rel="apple-touch-icon" href="./icon-180.png">
+<link rel="icon" href="./icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Nastaliq+Urdu:wght@400;700&family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --cobalt:#1E3D6B; --cobalt-deep:#152C4F; --turquoise:#2FA69A;
+    --brick:#C0563B; --paper:#FAFAF7; --ink:#1B2230; --ink50:#6B7280; --line:#E4E4DC;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{
+    margin:0; background:var(--paper); color:var(--ink);
+    font-family:'Inter',-apple-system,sans-serif;
+    padding:max(24px,env(safe-area-inset-top)) 16px calc(48px + env(safe-area-inset-bottom));
+    -webkit-text-size-adjust:100%;
+  }
+  #app{max-width:480px;margin:0 auto}
+  button{cursor:pointer;font-family:inherit;border:none}
+  button:focus-visible{outline:3px solid var(--turquoise);outline-offset:2px}
+
+  .header{text-align:center;margin-bottom:28px}
+  .urdu-title{font-family:'Noto Nastaliq Urdu',serif;font-size:40px;color:var(--turquoise);margin:0 0 4px;line-height:1.6}
+  .title{font-family:'Fraunces',serif;font-size:30px;margin:0;color:var(--cobalt-deep)}
+  .subtitle{color:var(--ink50);font-size:14px;margin-top:8px}
+
+  .card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:18px;margin-bottom:16px;box-shadow:0 1px 3px rgba(21,44,79,.06)}
+  .card.sotd{background:#FFFDF5;border-color:#EADFBE}
+  .deck-head{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:10px}
+  .deck-urdu{font-family:'Noto Nastaliq Urdu',serif;color:var(--brick);font-size:16px}
+  .deck-name{font-family:'Fraunces',serif;font-size:20px;margin:2px 0 0;color:var(--cobalt-deep)}
+  .deck-count{font-size:12px;color:var(--ink50);text-align:right;line-height:1.5;flex-shrink:0}
+  .dim{opacity:.7}
+
+  .track{height:6px;background:var(--line);border-radius:3px;overflow:hidden;margin:6px 0 14px;display:flex}
+  .fill{height:100%;background:var(--turquoise);transition:width .3s ease}
+  .fill.soft{background:#A9DAD4}
+
+  .actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .btn{border-radius:10px;font-size:14px;font-weight:600}
+  .btn.primary{background:var(--cobalt);color:#fff;padding:10px 16px}
+  .btn.secondary{background:transparent;color:var(--cobalt);border:1.5px solid var(--cobalt);padding:9px 14px}
+  .btn.ghost{background:transparent;color:var(--ink50);padding:6px 8px;font-weight:400}
+  .btn.ghost-sm{background:transparent;color:var(--ink50);font-size:12px;margin-left:auto;font-weight:400}
+
+  .sotd-prompt{font-size:17px;font-weight:500;margin:4px 0 12px}
+  textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:16px;font-family:inherit;resize:vertical;background:#fff;color:var(--ink)}
+  textarea:focus{outline:2px solid var(--turquoise);outline-offset:1px}
+  .sotd-answer{margin-top:12px;padding:12px 14px;background:#F0F7F6;border-radius:10px}
+  .sotd-answer-text{margin:0;font-size:16px;font-weight:600;color:var(--cobalt-deep)}
+  .sotd-hint{margin:6px 0 0;font-size:13px;color:var(--ink50)}
+  #sotd-reveal{margin-top:10px}
+
+  .session-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+  .counter{font-size:13px;color:var(--ink50)}
+  .card-wrap{perspective:1200px;margin:20px 0;height:340px}
+  .card-inner{position:relative;width:100%;height:100%;transform-style:preserve-3d;transition:transform .45s cubic-bezier(.4,.2,.2,1)}
+  .card-inner.flipped{transform:rotateY(180deg)}
+  .face{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;background:#fff;border:1px solid var(--line);border-radius:20px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:28px;text-align:center;box-shadow:0 4px 16px rgba(21,44,79,.08)}
+  .face.back{background:var(--cobalt-deep);border:none;transform:rotateY(180deg)}
+  .face.back .card-text{color:#fff;white-space:pre-line}
+  .face.back .face-label{color:rgba(255,255,255,.55)}
+  .face-label{position:absolute;top:18px;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink50);font-weight:600}
+  .card-text{font-size:22px;font-weight:500;line-height:1.5;margin:0}
+  .card-text.small{font-size:17px}
+  .tap-hint{position:absolute;bottom:18px;font-size:12px;color:var(--ink50)}
+
+  .answer-row{display:flex;gap:12px}
+  .answer-row.hidden{visibility:hidden}
+  .ans{flex:1;border-radius:12px;padding:16px 0;font-size:16px;font-weight:600}
+  .ans.again{background:#F6E7E2;color:var(--brick)}
+  .ans.got{background:var(--turquoise);color:#fff}
+
+  .center{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:70vh;text-align:center;gap:12px}
+  .urdu-accent{font-family:'Noto Nastaliq Urdu',serif;font-size:44px;color:var(--turquoise);margin:0;line-height:1.8}
+  .done-title{font-family:'Fraunces',serif;font-size:26px;margin:0}
+  .done-stats{color:var(--ink50);margin:0 0 12px}
+
+  .speak-toggle{display:flex;align-items:center;gap:14px;justify-content:space-between;background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin-bottom:16px;cursor:pointer}
+  .speak-toggle strong{font-size:15px;color:var(--cobalt-deep)}
+  .speak-toggle p{margin:3px 0 0;font-size:12.5px;color:var(--ink50);line-height:1.45}
+  .speak-toggle.off-note{cursor:default;background:#F4F4EF}
+  .switch{width:46px;height:28px;border-radius:14px;background:var(--line);position:relative;flex-shrink:0;transition:background .2s}
+  .knob{position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2);transition:transform .2s}
+  .speak-toggle.on .switch{background:var(--turquoise)}
+  .speak-toggle.on .knob{transform:translateX(18px)}
+
+  .speak-zone{margin-bottom:14px;text-align:center}
+  .mic{width:100%;background:var(--cobalt-deep);color:#fff;border-radius:12px;padding:15px 0;font-size:16px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:10px}
+  .mic-dot{width:11px;height:11px;border-radius:50%;background:#fff;opacity:.6}
+  .mic.live{background:var(--brick)}
+  .mic.live .mic-dot{opacity:1;animation:pulse 1s infinite}
+  @keyframes pulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.5);opacity:.5}}
+  .speak-status{margin:10px 2px 0;font-size:13.5px;color:var(--ink50);line-height:1.5}
+  .speak-status.pass{color:var(--turquoise);font-weight:600}
+  .speak-status.fail{color:var(--brick)}
+  .speak-status b{color:var(--cobalt-deep)}
+
+  .footer{text-align:center;font-size:12px;color:var(--ink50);margin-top:8px;line-height:1.6}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script src="./app.js"></script>
+</body>
+</html>

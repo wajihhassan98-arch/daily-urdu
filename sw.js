@@ -1,4 +1,4 @@
-const CACHE = "urdu-v3";
+const CACHE = "urdu-v5";
 const ASSETS = ["./", "./index.html", "./app.js", "./manifest.json", "./icon-192.png"];
 
 self.addEventListener("install", (e) => {
@@ -13,15 +13,33 @@ self.addEventListener("activate", (e) => {
   );
 });
 
+// Network-first for our own files so updates land without bumping CACHE by hand;
+// falls back to cache when offline.
 self.addEventListener("fetch", (e) => {
   if (e.request.method !== "GET") return;
+  const url = new URL(e.request.url);
+  const isOwn = url.origin === self.location.origin;
+
+  if (isOwn) {
+    e.respondWith(
+      fetch(e.request)
+        .then((res) => {
+          const copy = res.clone();
+          caches.open(CACHE).then((c) => c.put(e.request, copy)).catch(() => {});
+          return res;
+        })
+        .catch(() => caches.match(e.request).then((hit) => hit || caches.match("./index.html")))
+    );
+    return;
+  }
+
   e.respondWith(
     caches.match(e.request).then((hit) =>
       hit || fetch(e.request).then((res) => {
         const copy = res.clone();
         caches.open(CACHE).then((c) => c.put(e.request, copy)).catch(() => {});
         return res;
-      }).catch(() => caches.match("./index.html"))
+      }).catch(() => undefined)
     )
   );
 });

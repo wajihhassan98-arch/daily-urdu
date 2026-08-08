@@ -737,36 +737,47 @@ function rawSim(said, target) {
   const a = skeleton(said);
   const b = skeleton(target);
   if (!a || !b) return 0;
+
+  // Full comparison. Edit distance over the longer string, so rambling
+  // something unrelated (or much longer) scores badly.
   const full = 1 - levenshtein(a, b) / Math.max(a.length, b.length);
 
-  // Saying extra words around the phrase ("mai theek hu" for "Theek hu")
-  // shouldn't fail. Slide the target over the utterance and take the best fit.
-  // Only for targets long enough that a chance match is unlikely.
-  if (b.length >= 3 && a.length > b.length) {
+  // Allow a little padding around the phrase ("mai theek hu" for "Theek hu"),
+  // but only for targets long enough that a chance window match is unlikely,
+  // and only when that window is nearly exact. Otherwise any long utterance
+  // contains a window resembling a short target.
+  // Degenerate input ("la la la la", humming) collapses to one repeated
+  // sound — never a real answer.
+  if (new Set(a).size <= 1) return 0;
+
+  // A wildly different length means it wasn't the same phrase.
+  const ratio = Math.max(a.length, b.length) / Math.min(a.length, b.length);
+  if (ratio > 2.5) return full * 0.6;
+
+  if (b.length >= 7 && a.length > b.length && a.length <= b.length * 2.2) {
     let best = 0;
     for (let i = 0; i <= a.length - b.length; i++) {
-      const win = a.slice(i, i + b.length);
-      best = Math.max(best, 1 - levenshtein(win, b) / b.length);
+      best = Math.max(best, 1 - levenshtein(a.slice(i, i + b.length), b) / b.length);
       if (best === 1) break;
     }
-    return Math.max(full, best * 0.95);
+    if (best >= 0.85) return Math.max(full, 0.88);
   }
   return full;
 }
 
 // Cards often hold alternatives ("Kya haal hai? / Aur sunao?") or two clauses
-// ("Theek hu, tum sunao"). Saying any one of those should count.
+// ("Theek hu, tum sunao"). Saying any one of those counts.
 function similarity(said, target) {
   const variants = [target];
   String(target)
-    .split(/\s*[\/,–—]\s*|\s+\u2014\s+/)
+    .split(/\s*[\/,\u2013\u2014]\s*/)
     .map((s) => s.trim())
     .filter((s) => s.length > 2)
     .forEach((s) => variants.push(s));
   return Math.max(...variants.map((v) => rawSim(said, v)));
 }
 
-const PASS_THRESHOLD = 0.55;
+const PASS_THRESHOLD = 0.48;
 
 let speechMode = localStorage.getItem("urdu-speech-mode") === "1";
 let recog = null;
@@ -1175,16 +1186,18 @@ function renderSession() {
   const status = document.getElementById("speak-status");
 
   // Speech-detection fallback: reveal the answer, let you self-check.
+  // Detection-only mode: we can hear THAT you spoke, not WHAT you said.
   function fallbackGate(reason) {
-    status.className = "speak-status";
-    status.textContent = "Listening for your voice…";
+    status.className = "speak-status warn";
+    status.textContent = "Speech check unavailable — listening for your voice only…";
     mic.classList.add("live");
     volumeGate(
       () => {
         mic.classList.remove("live");
-        status.className = "speak-status pass";
+        status.className = "speak-status warn";
         status.innerHTML =
-          `Heard you speak ✓ — compare with the answer, then grade yourself.`;
+          `You spoke — but this browser can't check <em>what</em> you said. ` +
+          `Compare with the answer and grade yourself honestly.`;
         flipped = true;
         document.getElementById("card-inner").classList.add("flipped");
         document.getElementById("answer-row").classList.remove("hidden");
@@ -1228,6 +1241,7 @@ function renderSession() {
     }
 
     if (!SPEECH_SUPPORTED) return fallbackGate("unsupported");
+
 
     mic.classList.add("live");
     status.textContent = "Listening…";

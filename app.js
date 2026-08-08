@@ -848,7 +848,7 @@ function renderHome() {
         ? `<div class="speak-toggle${speechMode ? " on" : ""}" id="speak-toggle">
              <div>
                <strong>Speak mode</strong>
-               <p>Say the Urdu out loud to pass a card, instead of self-checking.</p>
+               <p>Every deck flips to English → Urdu, and you say the answer out loud to pass.</p>
              </div>
              <span class="switch"><span class="knob"></span></span>
            </div>`
@@ -1002,15 +1002,26 @@ function renderSession() {
   const deck = DECKS[deckKey];
   const card = deck.cards[queue[idx]];
   const englishFront = ENGLISH_FRONT.includes(deckKey);
-  const frontLabel = deckKey === "grammar" ? "Question" : englishFront ? "English" : "Urdu";
-  const backLabel = deckKey === "grammar" ? "Answer" : englishFront ? "Urdu" : "English";
   const pct = (idx / queue.length) * 100;
-  const longBack = card[1].length > 90;
 
-  // The Urdu side is what you say out loud. Grammar cards are explanations,
-  // not phrases, so speaking is skipped there.
-  const target = englishFront ? card[1] : card[0];
+  // Grammar cards are explanations, not phrases — never spoken.
   const speakable = speechMode && SPEECH_SUPPORTED && deckKey !== "grammar";
+
+  // In speak mode you always translate INTO Urdu, so English leads on every
+  // deck — even the ones that normally show Urdu first.
+  const urduSide = englishFront ? card[1] : card[0];
+  const englishSide = englishFront ? card[0] : card[1];
+
+  const front = speakable ? englishSide : card[0];
+  const back = speakable ? urduSide : card[1];
+  const target = urduSide;
+
+  const frontLabel =
+    deckKey === "grammar" ? "Question" : speakable || englishFront ? "English" : "Urdu";
+  const backLabel =
+    deckKey === "grammar" ? "Answer" : speakable || englishFront ? "Urdu" : "English";
+  const longBack = back.length > 90;
+  const longFront = front.length > 90;
 
   app.innerHTML = `
     <div class="session-top">
@@ -1022,12 +1033,12 @@ function renderSession() {
       <div class="card-inner${flipped ? " flipped" : ""}" id="card-inner">
         <div class="face">
           <span class="face-label">${frontLabel}</span>
-          <p class="card-text">${esc(card[0])}</p>
-          <span class="tap-hint">tap to flip</span>
+          <p class="card-text${longFront ? " small" : ""}">${esc(front)}</p>
+          <span class="tap-hint">${speakable ? "say it, or tap to reveal" : "tap to flip"}</span>
         </div>
         <div class="face back">
           <span class="face-label">${backLabel}</span>
-          <p class="card-text${longBack ? " small" : ""}">${esc(card[1])}</p>
+          <p class="card-text${longBack ? " small" : ""}">${esc(back)}</p>
         </div>
       </div>
     </div>
@@ -1035,7 +1046,7 @@ function renderSession() {
       speakable
         ? `<div class="speak-zone" id="speak-zone">
              <button class="mic" id="mic"><span class="mic-dot"></span> Say it out loud</button>
-             <p class="speak-status" id="speak-status">Speak the Urdu, then it grades you.</p>
+             <p class="speak-status" id="speak-status">Say it in Urdu — the app checks you.</p>
            </div>`
         : ""
     }

@@ -3,8 +3,9 @@
 Offline flashcard app. 314 cards across 7 decks, plus a rotating sentence of the day.
 Progress is stored in localStorage on the device.
 
-**Speak mode**: toggle it on the home screen and you must say the Urdu out loud —
-the app listens, compares what it heard against the card, and only passes you if
+**Speak mode**: toggle it on the home screen. Every deck flips to English → Urdu
+(so you always produce, never just recognize), and you say the answer out loud.
+The app listens, compares what it heard against the card, and only passes you if
 it's close. Needs microphone permission and an internet connection (speech
 recognition is server-side); everything else works offline.
 

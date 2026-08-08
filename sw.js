@@ -1,4 +1,4 @@
-const CACHE = "urdu-v5";
+const CACHE = "urdu-v6";
 const ASSETS = ["./", "./index.html", "./app.js", "./manifest.json", "./icon-192.png"];
 
 self.addEventListener("install", (e) => {

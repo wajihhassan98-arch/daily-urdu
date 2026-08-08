@@ -622,6 +622,51 @@ const SOTD_PROMPTS = [
   },
 ];
 // ---------- STORAGE ----------
+// ---------- SPEAKER GENDER ----------
+// Urdu inflects the verb for the speaker's own gender in the present, future,
+// habitual and intransitive past. Cards are written male by default; these are
+// the female forms. Only cards where the SPEAKER is the subject appear here —
+// "Gym khul gaya" (gym is masculine) and "Aap kaise/kaisi hain" (about the
+// listener) are deliberately untouched.
+const FEM_FORMS = {
+  family: {
+    15: "Inshallah, mai is sardi mein aa rahi hu",
+    23: "Mai aap ko baad mein call karti hu",
+    31: "Laykin mai seekh rahi hu!",
+    34: "Mai samajh gai!",
+    39: "Agli baar mai zaroor aaongi",
+  },
+  casual: {
+    6: "Bas nikal rahi hu / raaste mein hu",
+    9: "Mai tumhe call karti hu",
+    17: "Mazaak kar rahi hu",
+    25: "Thak gai hu",
+    26: "Bore ho rahi hu",
+    33: "Bhool gai",
+    34: "Baad mein kar loongi",
+  },
+  sentences: {
+    16: "Agar mai jaldi uthti, tu mai nashta ghar par khati",
+    17: "Agar covid na hota, tu mai Pakistan jati",
+    18: "Agar mai Pakistan mein hoti, tu meri Urdu bahot achi hoti",
+    20: "Mai bottle khoolne ki koshish kar rahi hu",
+    23: "Mai aap ko paise bhejne ki koshish kar rahi thi",
+    24: "Mai koshish karoon gi",
+    25: "Mai aap ka intezaar kar rahi hu",
+    38: "Jaise hi mai ghar pohnchi, mai ne Ami ko call ki",
+  },
+};
+
+let speakerFem = localStorage.getItem("urdu-speaker") === "f";
+
+// Returns the card with the Urdu side swapped to the speaker's forms.
+function getCard(deckKey, i) {
+  const c = DECKS[deckKey].cards[i];
+  if (!speakerFem) return c;
+  const alt = FEM_FORMS[deckKey] && FEM_FORMS[deckKey][i];
+  return alt ? [c[0], alt] : c;
+}
+
 const STORAGE_KEY = "urdu-flashcards-v1";
 
 const emptyProgress = () => {
@@ -961,6 +1006,17 @@ function renderHome() {
       }</p>
     </header>
 
+    <div class="speaker-pick">
+      <div class="speaker-copy">
+        <strong>Speaking as</strong>
+        <p>Urdu changes the verb for your own gender — "mai seekh <b>raha</b> hu" vs "seekh <b>rahi</b> hu".</p>
+      </div>
+      <div class="seg" id="speaker-seg">
+        <button class="${speakerFem ? "" : "sel"}" data-sp="m">Male</button>
+        <button class="${speakerFem ? "sel" : ""}" data-sp="f">Female</button>
+      </div>
+    </div>
+
     ${
       MIC_POSSIBLE
         ? `<div class="speak-toggle${speechMode ? " on" : ""}" id="speak-toggle">
@@ -1065,6 +1121,14 @@ function renderHome() {
       render();
     });
   }
+  app.querySelectorAll("#speaker-seg [data-sp]").forEach((b) =>
+    b.addEventListener("click", () => {
+      speakerFem = b.dataset.sp === "f";
+      localStorage.setItem("urdu-speaker", speakerFem ? "f" : "m");
+      render();
+    })
+  );
+
   const toggle = document.getElementById("speak-toggle");
   if (toggle) {
     toggle.addEventListener("click", () => {
@@ -1122,7 +1186,7 @@ function answer(gotIt) {
 
 function renderSession() {
   const deck = DECKS[deckKey];
-  const card = deck.cards[queue[idx]];
+  const card = getCard(deckKey, queue[idx]);
   const englishFront = ENGLISH_FRONT.includes(deckKey);
   const pct = (idx / queue.length) * 100;
 

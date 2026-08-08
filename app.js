@@ -772,6 +772,24 @@ let speechMode = localStorage.getItem("urdu-speech-mode") === "1";
 let recog = null;
 let listening = false;
 
+// iOS is fussy: SpeechRecognition often reports "not-allowed" inside a
+// home-screen PWA even when the mic is granted. Asking via getUserMedia first
+// triggers the real permission prompt and unlocks it in most cases.
+let micGranted = false;
+
+async function ensureMic() {
+  if (micGranted) return true;
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return false;
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    stream.getTracks().forEach((t) => t.stop());
+    micGranted = true;
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
 function listen(onResult, onError) {
   if (!SPEECH_SUPPORTED) return onError("unsupported");
   try {
@@ -810,7 +828,68 @@ function stopListening() {
     listening = false;
     try { recog.stop(); } catch (e) {}
   }
+  stopVolumeGate();
 }
+
+// ---------- FALLBACK: speech DETECTION ----------
+// When recognition is unavailable (common in iOS standalone PWAs), we can still
+// require that you actually spoke. This can't check *what* you said — it just
+// listens for sustained voice, then reveals the answer for you to compare.
+let audioCtx = null, gateStream = null, gateRAF = null;
+
+function stopVolumeGate() {
+  if (gateRAF) cancelAnimationFrame(gateRAF), (gateRAF = null);
+  if (gateStream) gateStream.getTracks().forEach((t) => t.stop()), (gateStream = null);
+  if (audioCtx && audioCtx.state !== "closed") { try { audioCtx.close(); } catch (e) {} }
+  audioCtx = null;
+}
+
+async function volumeGate(onSpoke, onError, onLevel) {
+  try {
+    gateStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  } catch (e) {
+    return onError("not-allowed");
+  }
+  try {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === "suspended") await audioCtx.resume();
+    const src = audioCtx.createMediaStreamSource(gateStream);
+    const analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 1024;
+    src.connect(analyser);
+    const buf = new Uint8Array(analyser.fftSize);
+
+    let voicedMs = 0, last = performance.now(), started = performance.now();
+    const NEEDED_MS = 700;      // ~0.7s of voice counts as "you said it"
+    const TIMEOUT_MS = 9000;
+
+    const tick = () => {
+      analyser.getByteTimeDomainData(buf);
+      let sum = 0;
+      for (let i = 0; i < buf.length; i++) {
+        const v = (buf[i] - 128) / 128;
+        sum += v * v;
+      }
+      const rms = Math.sqrt(sum / buf.length);
+      const now = performance.now();
+      const dt = now - last;
+      last = now;
+      if (onLevel) onLevel(Math.min(1, rms * 8));
+      if (rms > 0.045) voicedMs += dt;
+      if (voicedMs >= NEEDED_MS) { stopVolumeGate(); return onSpoke(); }
+      if (now - started > TIMEOUT_MS) { stopVolumeGate(); return onError("no-speech"); }
+      gateRAF = requestAnimationFrame(tick);
+    };
+    gateRAF = requestAnimationFrame(tick);
+  } catch (e) {
+    stopVolumeGate();
+    onError("audio-failed");
+  }
+}
+
+const IS_STANDALONE =
+  window.navigator.standalone === true ||
+  window.matchMedia("(display-mode: standalone)").matches;
 
 // ---------- STATE ----------
 let view = "home";
@@ -834,8 +913,17 @@ function renderHome() {
 
   let html = `
     <header class="header">
+      <svg class="crest" viewBox="0 0 100 116" fill="none" aria-hidden="true">
+        <path d="M50 8 C50 8 76 30 76 62 L76 104 L24 104 L24 62 C24 30 50 8 50 8 Z"
+              fill="#fff" stroke="#E8A33D" stroke-width="3"/>
+        <path d="M50 20 C50 20 67 38 67 63 L67 104 L33 104 L33 63 C33 38 50 20 50 20 Z"
+              fill="none" stroke="#E8A33D" stroke-width="2" opacity=".65"/>
+        <path d="M50 46 L54 58 L66 62 L54 66 L50 78 L46 66 L34 62 L46 58 Z" fill="#1A2B5C"/>
+        <rect x="16" y="104" width="68" height="8" rx="4" fill="#E8A33D"/>
+      </svg>
       <p class="urdu-title">اُردو</p>
       <h1 class="title">Daily Urdu</h1>
+      <div class="rule"></div>
       <p class="subtitle">${
         streak > 0
           ? `${streak}-day streak — keep it going`
@@ -848,7 +936,11 @@ function renderHome() {
         ? `<div class="speak-toggle${speechMode ? " on" : ""}" id="speak-toggle">
              <div>
                <strong>Speak mode</strong>
-               <p>Every deck flips to English → Urdu, and you say the answer out loud to pass.</p>
+               <p>Every deck flips to English → Urdu, and you say the answer out loud to pass.${
+                 IS_STANDALONE
+                   ? " <br><em>Mic trouble? Open this site in Safari once, allow the mic there, then come back.</em>"
+                   : ""
+               }</p>
              </div>
              <span class="switch"><span class="knob"></span></span>
            </div>`
@@ -1082,11 +1174,62 @@ function renderSession() {
   const mic = document.getElementById("mic");
   const status = document.getElementById("speak-status");
 
-  mic.addEventListener("click", (e) => {
-    e.stopPropagation();
-    if (listening) { stopListening(); mic.classList.remove("live"); status.textContent = "Stopped."; return; }
-    mic.classList.add("live");
+  // Speech-detection fallback: reveal the answer, let you self-check.
+  function fallbackGate(reason) {
     status.className = "speak-status";
+    status.textContent = "Listening for your voice…";
+    mic.classList.add("live");
+    volumeGate(
+      () => {
+        mic.classList.remove("live");
+        status.className = "speak-status pass";
+        status.innerHTML =
+          `Heard you speak ✓ — compare with the answer, then grade yourself.`;
+        flipped = true;
+        document.getElementById("card-inner").classList.add("flipped");
+        document.getElementById("answer-row").classList.remove("hidden");
+      },
+      (err) => {
+        mic.classList.remove("live");
+        status.className = "speak-status fail";
+        status.innerHTML =
+          err === "not-allowed"
+            ? `Mic access denied.${
+                IS_STANDALONE
+                  ? " In a home-screen app iOS asks separately — try opening the site in Safari, allow the mic there, then reopen the icon."
+                  : " Tap the <b>aA</b> icon in Safari's address bar → Website Settings → Microphone → Allow."
+              }`
+            : "Didn't hear anything — tap and speak again.";
+        document.getElementById("answer-row").classList.remove("hidden");
+      }
+    );
+  }
+
+  mic.addEventListener("click", async (e) => {
+    e.stopPropagation();
+    if (listening) {
+      stopListening();
+      mic.classList.remove("live");
+      status.textContent = "Stopped.";
+      return;
+    }
+
+    status.className = "speak-status";
+    status.textContent = "Checking mic…";
+
+    const ok = await ensureMic();
+    if (!ok) {
+      status.className = "speak-status fail";
+      status.innerHTML = IS_STANDALONE
+        ? `Mic blocked in the home-screen app. Open <b>${location.host}</b> in Safari, tap the mic once and allow it, then reopen the icon.`
+        : `Mic blocked. Tap <b>aA</b> in Safari's address bar → Website Settings → Microphone → Allow, then reload.`;
+      document.getElementById("answer-row").classList.remove("hidden");
+      return;
+    }
+
+    if (!SPEECH_SUPPORTED) return fallbackGate("unsupported");
+
+    mic.classList.add("live");
     status.textContent = "Listening…";
 
     listen(
@@ -1095,20 +1238,17 @@ function renderSession() {
         const best = alts
           .map((t) => ({ t, s: similarity(t, target) }))
           .sort((a, b) => b.s - a.s)[0];
-        const heard = best.t;
-        const score = best.s;
 
-        if (score >= PASS_THRESHOLD) {
+        if (best.s >= PASS_THRESHOLD) {
           status.className = "speak-status pass";
-          status.innerHTML = `Heard: “${esc(heard)}” ✓`;
-          // reveal the answer so you can compare, then advance
+          status.innerHTML = `Heard: “${esc(best.t)}” ✓`;
           flipped = true;
           document.getElementById("card-inner").classList.add("flipped");
           setTimeout(() => answer(true), 1100);
         } else {
           status.className = "speak-status fail";
           status.innerHTML =
-            `Heard: “${esc(heard)}” — not quite. Target: <b>${esc(target)}</b>` +
+            `Heard: “${esc(best.t)}” — not quite. Target: <b>${esc(target)}</b>` +
             `<br><span class="dim">Try again, or use the buttons below.</span>`;
           flipped = true;
           document.getElementById("card-inner").classList.add("flipped");
@@ -1117,16 +1257,18 @@ function renderSession() {
       },
       (err) => {
         mic.classList.remove("live");
-        status.className = "speak-status fail";
-        if (err === "not-allowed" || err === "service-not-allowed") {
-          status.textContent = "Mic blocked. Allow microphone access in Settings → Safari.";
-        } else if (err === "no-speech") {
-          status.textContent = "Didn\u2019t catch that — tap and speak again.";
-        } else if (err === "unsupported") {
-          status.textContent = "Speech recognition isn\u2019t available in this browser.";
-        } else {
-          status.textContent = "Mic error. Use the buttons below instead.";
+        // Recognition can fail even with the mic granted (common on iOS
+        // standalone). Drop to detection mode instead of dead-ending.
+        if (err === "not-allowed" || err === "service-not-allowed" ||
+            err === "unsupported" || err === "start-failed" ||
+            err === "audio-capture" || err === "network") {
+          return fallbackGate(err);
         }
+        status.className = "speak-status fail";
+        status.textContent =
+          err === "no-speech"
+            ? "Didn't catch that — tap and speak again."
+            : "Mic error. Use the buttons below instead.";
         document.getElementById("answer-row").classList.remove("hidden");
       }
     );

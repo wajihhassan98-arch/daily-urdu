@@ -686,6 +686,9 @@ const ENGLISH_FRONT = ["sentences", "family", "casual"];
 // ---------- SPEECH ----------
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
 const SPEECH_SUPPORTED = !!SR;
+// Detection mode only needs a microphone, so speak mode is offered whenever
+// getUserMedia exists — recognition just upgrades it to real grading.
+const MIC_POSSIBLE = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
 
 // Urdu script -> rough roman consonants, so ASR output can be compared
 // against our Roman-Urdu card text.
@@ -847,8 +850,12 @@ function stopListening() {
 // require that you actually spoke. This can't check *what* you said — it just
 // listens for sustained voice, then reveals the answer for you to compare.
 let audioCtx = null, gateStream = null, gateRAF = null;
+let recorder = null, chunks = [], lastClipUrl = null;
 
 function stopVolumeGate() {
+  if (recorder && recorder.state === "recording") {
+    try { recorder.stop(); } catch (e) {}
+  }
   if (gateRAF) cancelAnimationFrame(gateRAF), (gateRAF = null);
   if (gateStream) gateStream.getTracks().forEach((t) => t.stop()), (gateStream = null);
   if (audioCtx && audioCtx.state !== "closed") { try { audioCtx.close(); } catch (e) {} }
@@ -860,6 +867,18 @@ async function volumeGate(onSpoke, onError, onLevel) {
     gateStream = await navigator.mediaDevices.getUserMedia({ audio: true });
   } catch (e) {
     return onError("not-allowed");
+  }
+
+  // Record it too — hearing yourself back next to the answer is the closest
+  // thing to a real check when the browser won't transcribe.
+  chunks = [];
+  if (lastClipUrl) { URL.revokeObjectURL(lastClipUrl); lastClipUrl = null; }
+  try {
+    recorder = new MediaRecorder(gateStream);
+    recorder.ondataavailable = (ev) => { if (ev.data && ev.data.size) chunks.push(ev.data); };
+    recorder.start();
+  } catch (e) {
+    recorder = null;
   }
   try {
     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -943,13 +962,13 @@ function renderHome() {
     </header>
 
     ${
-      SPEECH_SUPPORTED
+      MIC_POSSIBLE
         ? `<div class="speak-toggle${speechMode ? " on" : ""}" id="speak-toggle">
              <div>
                <strong>Speak mode</strong>
                <p>Every deck flips to English → Urdu, and you say the answer out loud to pass.${
                  IS_STANDALONE
-                   ? " <br><em>Mic trouble? Open this site in Safari once, allow the mic there, then come back.</em>"
+                   ? " <br><em>Heads up: iOS can't transcribe inside a home-screen app — here it only checks that you spoke. Open the site in Safari for real grading.</em>"
                    : ""
                }</p>
              </div>
@@ -958,7 +977,7 @@ function renderHome() {
         : `<div class="speak-toggle off-note">
              <div>
                <strong>Speak mode unavailable</strong>
-               <p>This browser has no speech recognition. Safari or Chrome on your phone supports it.</p>
+               <p>This browser gives no microphone access, so cards can't require speaking.</p>
              </div>
            </div>`
     }
@@ -1108,7 +1127,7 @@ function renderSession() {
   const pct = (idx / queue.length) * 100;
 
   // Grammar cards are explanations, not phrases — never spoken.
-  const speakable = speechMode && SPEECH_SUPPORTED && deckKey !== "grammar";
+  const speakable = speechMode && MIC_POSSIBLE && deckKey !== "grammar";
 
   // In speak mode you always translate INTO Urdu, so English leads on every
   // deck — even the ones that normally show Urdu first.
@@ -1196,11 +1215,29 @@ function renderSession() {
         mic.classList.remove("live");
         status.className = "speak-status warn";
         status.innerHTML =
-          `You spoke — but this browser can't check <em>what</em> you said. ` +
-          `Compare with the answer and grade yourself honestly.`;
+          `iOS won't transcribe inside a home-screen app, so this only heard ` +
+          `<em>that</em> you spoke. Play yourself back against the answer, then grade honestly.` +
+          `<span id="clip-wrap"></span>`;
         flipped = true;
         document.getElementById("card-inner").classList.add("flipped");
         document.getElementById("answer-row").classList.remove("hidden");
+
+        // Offer playback once the recorder has flushed its data.
+        setTimeout(() => {
+          if (!chunks.length) return;
+          try {
+            lastClipUrl = URL.createObjectURL(new Blob(chunks, { type: chunks[0].type || "audio/mp4" }));
+            const wrap = document.getElementById("clip-wrap");
+            if (!wrap) return;
+            wrap.innerHTML = `<br><button class="btn secondary clip-btn" id="play-clip">▶︎ Hear yourself</button>`;
+            const audio = new Audio(lastClipUrl);
+            document.getElementById("play-clip").addEventListener("click", (ev) => {
+              ev.stopPropagation();
+              audio.currentTime = 0;
+              audio.play().catch(() => {});
+            });
+          } catch (err) {}
+        }, 250);
       },
       (err) => {
         mic.classList.remove("live");

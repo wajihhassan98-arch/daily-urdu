@@ -78,6 +78,25 @@ const DECKS = {
       ["Bacha hua", "Left over / remaining"],
       ["Chahiye", "Should (present)"],
       ["Chahiye tha", "Should have (past)"],
+      ["Baher", "Outside"],
+      ["Geela / geele", "Wet"],
+      ["Khushk karna", "To dry"],
+      ["Saaf", "Clean / clear"],
+      ["Aawaaz", "Voice / sound (feminine)"],
+      ["Se pehle", "Before"],
+      ["Is ke baad", "After that"],
+      ["Khatam karna", "To finish"],
+      ["Theek karna", "To fix"],
+      ["Istemaal karna", "To use"],
+      ["Chalana", "To drive / operate"],
+      ["Tez", "Fast"],
+      ["Sakht", "Strict / harsh"],
+      ["Mera khayal hai", "I think / in my opinion"],
+      ["Faisla karna", "To decide"],
+      ["Ya", "Or (not 'aur' — that's and)"],
+      ["Nashte mein", "For breakfast"],
+      ["Chahta / chahti", "Want (m / f)"],
+      ["Pasand karna", "To like"],
     ],
   },
   everyday: {
@@ -577,6 +596,30 @@ const DECKS = {
         "It's been a year since we moved to the new house",
         "Humein naye ghar mein muntaqil huay poora aik saal ho chuka hai",
       ],
+      ["Let me sleep", "Mujhe sone do"],
+      ["Let me go outside", "Mujhe baher jane do"],
+      ["One minute, let me get my headphone", "Aik minute, mujhe headphone lene do"],
+      ["Let me write it down", "Mujhe likhne do"],
+      ["Zoom isn't working, let me restart my laptop", "Zoom kaam nahi kar raha, mujhe laptop restart karne do"],
+      [
+        "I'm cooking — let me cook, then I'll call you",
+        "Mai khana paka raha hu — mujhe pakane do, phir mai aap ko call karoon ga",
+      ],
+      [
+        "Let me finish my class, then I'll send the documents",
+        "Mujhe class finish karne do, is ke baad mai documents bhej doon ga",
+      ],
+      ["My hair is wet, let me dry it before I go out", "Mere baal geele hain, baher jane se pehle mujhe khushk karne do"],
+      ["Mom doesn't let me drink coffee", "Ami mujhe coffee nahi peene deti hain"],
+      ["Dad doesn't let me drive the car", "Abu mujhe gari nahi chalane dete"],
+      ["The kids won't let me sleep", "Bache mujhe sone nahi dete"],
+      ["The doctor will let her go home in two days", "Doctor us ko do din mein ghar jane dein ge"],
+      ["I want a coffee", "Mai coffee chahta hu"],
+      ["What do you want for breakfast?", "Aap nashte mein kya chahte hain?"],
+      ["Do you want pasta or ice cream?", "Aap pasta chahte hain ya ice cream?"],
+      ["I need some money", "Mai kuch paise chahta hu"],
+      ["I like coffee", "Mai coffee pasand karta hu"],
+      ["What do you like for breakfast?", "Aap nashte mein kya pasand karte hain?"],
     ],
   },
 };
@@ -756,6 +799,11 @@ const FEM_FORMS = {
     10: "Mai bhi aa rahi hu",
   },
   sentences: {
+    46: "Mai khana paka rahi hu — mujhe pakane do, phir mai aap ko call karoon gi",
+    47: "Mujhe class finish karne do, is ke baad mai documents bhej doon gi",
+    53: "Mai coffee chahti hu",
+    56: "Mai kuch paise chahti hu",
+    57: "Mai coffee pasand karti hu",
     16: "Agar mai jaldi uthti, tu mai nashta ghar par khati",
     17: "Agar covid na hota, tu mai Pakistan jati",
     18: "Agar mai Pakistan mein hoti, tu meri Urdu bahot achi hoti",
@@ -776,6 +824,228 @@ function getCard(deckKey, i) {
   const alt = FEM_FORMS[deckKey] && FEM_FORMS[deckKey][i];
   return alt ? [c[0], alt] : c;
 }
+
+
+// ---------- DRILLS ----------
+// Grammar can't be flashcarded: you can't guess a rule statement from its name.
+// What you CAN do is apply the rule to a slot. Each item is a real sentence
+// with one form missing, and the feedback re-states the rule at the moment you
+// got it wrong — which is when it actually sticks.
+const DRILLS = {
+  permission: {
+    name: "Let me / letting someone",
+    urdu: "اجازت",
+    rule:
+      "Permission uses DE (give) as a helper.\n\n" +
+      "1. The main verb goes oblique: -na becomes -ne.\n" +
+      "   sona → sone · jana → jane · khana → khane · karna → karne · lena → lene\n" +
+      "2. DE conjugates for tense and for whoever is GIVING permission.\n" +
+      "   do (casual) · dein (polite) · deta/deti hai (lets) · doon ga/gi (will let) · di (let, past)\n\n" +
+      "Mujhe sone do — let me sleep.",
+    items: [
+      { q: "Let me sleep — Mujhe ___ do", o: ["sona", "sone", "soya"], a: 1,
+        why: "The main verb goes oblique: sona → sone." },
+      { q: "Let me go outside — Mujhe baher ___ do", o: ["jana", "jane", "gaya"], a: 1,
+        why: "jana → jane. Always -ne before de." },
+      { q: "Let me get the headphone — Mujhe headphone ___ do", o: ["lena", "lene", "liya"], a: 1,
+        why: "lena → lene." },
+      { q: "Let me restart the laptop — Mujhe laptop restart ___ do", o: ["karna", "karne", "kiya"], a: 1,
+        why: "karna → karne. English verbs borrow kar: 'restart karna'." },
+      { q: "Let me write it down — Mujhe ___ do", o: ["likhna", "likhne", "likha"], a: 1,
+        why: "likhna → likhne." },
+      { q: "Let me cook today — Aaj mujhe ___ do", o: ["pakana", "pakane", "pakaya"], a: 1,
+        why: "pakana → pakane." },
+      { q: "Mom lets me drink coffee — Ami mujhe coffee peene ___", o: ["deta hai", "deti hai", "diya"], a: 1,
+        why: "DE agrees with the permission-GIVER. Ami is feminine → deti hai." },
+      { q: "Dad doesn't let me drive — Abu mujhe gari nahi chalane ___", o: ["deti hai", "dete hain", "diya"], a: 1,
+        why: "Abu is masculine and respectful → dete hain." },
+      { q: "I won't let you go outside (I = m) — Mai aap ko baher nahi jane ___", o: ["doon ga", "doon gi", "diya"], a: 0,
+        why: "Future of de is doon ga / doon gi, agreeing with YOU, the giver." },
+      { q: "I let him eat chocolate — Mai ne us ko chocolate khane ___", o: ["di", "diya", "dete"], a: 0,
+        why: "Past with NE follows the object. Chocolate is feminine → di." },
+      { q: "The doctor will let her go home — Doctor us ko ghar jane ___", o: ["dein ge", "deti hai", "diya"], a: 0,
+        why: "Future, respectful subject → dein ge." },
+      { q: "The kids won't let me sleep — Bache mujhe sone nahi ___", o: ["dete", "deta", "di"], a: 0,
+        why: "Bache is masculine plural → dete." },
+      { q: "My brother doesn't let the kids use the phone — Woh phone istemaal nahi karne ___", o: ["deta hai", "deti hai", "diya"], a: 0,
+        why: "He is the giver, masculine → deta hai." },
+      { q: "Let me have a cup of tea (polite) — Mujhe aik cup chai ___", o: ["do", "dein", "diya"], a: 1,
+        why: "DEIN is the polite form of do — use it with elders." },
+    ],
+  },
+  wantlike: {
+    name: "Want & like",
+    urdu: "چاہنا / پسند",
+    rule:
+      "WANT = chah. LIKE = pasand kar.\n\n" +
+      "Both agree with the SUBJECT — the person wanting — never with the thing wanted.\n" +
+      "  m: chahta hu / chahta hai / chahte hain\n" +
+      "  f: chahti hu / chahti hai / chahti hain\n\n" +
+      "Mai coffee chahta hu — I want coffee.\n" +
+      "Fatima omelette pasand karti hai — Fatima likes omelette.",
+    items: [
+      { q: "I want a coffee (I = m) — Mai coffee ___ hu", o: ["chahta", "chahti", "chaha"], a: 0,
+        why: "Agrees with YOU, the wanter — masculine → chahta." },
+      { q: "Sarah wants an apple — Sarah saib ___ hai", o: ["chahta", "chahti", "chahte"], a: 1,
+        why: "Sarah is feminine → chahti. The apple's gender is irrelevant." },
+      { q: "Do you want pasta? (polite) — Aap pasta ___ hain?", o: ["chahta", "chahte", "chaha"], a: 1,
+        why: "Aap takes the plural form → chahte hain (chahti hain to a woman)." },
+      { q: "I need some money (I = m) — Mai kuch paise ___ hu", o: ["chahta", "chahti", "chahe"], a: 0,
+        why: "'Need' in this sense is just chah, same agreement." },
+      { q: "What do you want for breakfast? — Aap nashte mein kya ___ hain?", o: ["chahte", "chahta", "chaha"], a: 0,
+        why: "Aap → chahte hain. 'Nashte mein' = for breakfast." },
+      { q: "I like coffee (I = m) — Mai coffee pasand ___ hu", o: ["karta", "karti", "kiya"], a: 0,
+        why: "LIKE is pasand kar — the kar agrees with the subject." },
+      { q: "Fatima likes bread — Fatima bread pasand ___ hai", o: ["karta", "karti", "karte"], a: 1,
+        why: "Fatima is feminine → karti." },
+      { q: "Pasta ___ ice cream? ('or')", o: ["aur", "ya", "to"], a: 1,
+        why: "YA = or. AUR = and. Easy to mix up, especially in the group chat." },
+    ],
+  },
+  liadia: {
+    name: "Lia vs dia",
+    urdu: "لیا / دیا",
+    rule:
+      "Both say the action is DONE — the difference is who benefited.\n\n" +
+      "LIA — you did it for yourself.\n" +
+      "DIA — you did it for someone else.\n\n" +
+      "They follow the OBJECT's gender: lia/li, dia/di/diye.\n" +
+      "Never use them in the negative — use 'abhi tak nahi' + plain past.",
+    items: [
+      { q: "I already ate — Mai ne khana kha ___", o: ["lia", "dia", "gaya"], a: 0,
+        why: "You ate for yourself → lia." },
+      { q: "I cleaned the kitchen for Mom — Mai ne kitchen saaf kar ___", o: ["lia", "di", "gai"], a: 1,
+        why: "For someone else → di (kitchen treated as feminine)." },
+      { q: "I finished my homework — Mai ne homework khatam kar ___", o: ["lia", "dia", "gaya"], a: 0,
+        why: "Your own benefit → lia." },
+      { q: "I made your presentation for you — Mai ne aap ki presentation bana ___", o: ["li", "di", "gai"], a: 1,
+        why: "Done for you → di. Presentation is feminine." },
+      { q: "I haven't eaten yet — Mai ne abhi tak nahi ___", o: ["kha lia", "khaya", "kha dia"], a: 1,
+        why: "Negatives drop lia/dia entirely — plain past only." },
+      { q: "I bought the tickets (for myself) — Mai ne tickets khareed ___", o: ["li", "di", "gai"], a: 0,
+        why: "Your own benefit → li." },
+      { q: "I sent you the money — Mai ne aap ko paise bhej ___", o: ["liye", "diye", "gaye"], a: 1,
+        why: "For you → diye (paise is masculine plural)." },
+    ],
+  },
+  gaya: {
+    name: "Gaya / gai / gaye",
+    urdu: "گیا / گئی / گئے",
+    rule:
+      "Used with INTRANSITIVE verbs (no object) to say it already happened:\n" +
+      "so, aa, ja, ho, bhool, jaag, uth, mil, khul, toot.\n\n" +
+      "It agrees with the SUBJECT:\n" +
+      "  m singular → gaya · f singular → gai · plural/respectful → gaye / gayi hain",
+    items: [
+      { q: "The gym opened — Gym khul ___", o: ["gaya", "gai", "gaye"], a: 0,
+        why: "Gym is masculine → gaya." },
+      { q: "Mom has slept — Ami so ___ hain", o: ["gaya", "gayi", "gaye"], a: 1,
+        why: "Ami is feminine, respectful → gayi hain." },
+      { q: "I forgot (I = m) — Mai bhool ___", o: ["gaya", "gai", "gaye"], a: 0,
+        why: "Male speaker → gaya. (Female: bhool gai.)" },
+      { q: "I got tired (I = m) — Mai thak ___ hu", o: ["gaya", "gai", "gaye"], a: 0,
+        why: "Male speaker → gaya hu." },
+      { q: "Dad has slept — Abu so ___ hain", o: ["gaya", "gai", "gaye"], a: 2,
+        why: "Respectful masculine → gaye hain." },
+      { q: "Did the medicine turn up? — Kia dawai mil ___?", o: ["gaya", "gai", "gaye"], a: 1,
+        why: "Dawai is feminine → gai." },
+      { q: "The glass broke — Glass toot ___", o: ["gaya", "gai", "gaye"], a: 0,
+        why: "Glass is masculine → gaya." },
+    ],
+  },
+  neagree: {
+    name: "Past with NE",
+    urdu: "نے",
+    rule:
+      "With a transitive verb in the past, the subject takes NE — and then the\n" +
+      "verb agrees with the OBJECT, not with you.\n\n" +
+      "Mai ne biryani khai — biryani is feminine, so khai, even if you're male.\n" +
+      "Feminine form = add -i to the root. Special case: kar → ki.",
+    items: [
+      { q: "I ate biryani (I = m) — Mai ne biryani ___", o: ["khaya", "khai", "kha"], a: 1,
+        why: "Biryani is feminine → khai. Your own gender doesn't matter here." },
+      { q: "I watched a movie — Mai ne movie ___", o: ["dekha", "dekhi", "dekhe"], a: 1,
+        why: "Movie is treated as feminine → dekhi." },
+      { q: "Mom made curry — Ami ne curry ___", o: ["banaya", "banai", "banaye"], a: 1,
+        why: "Curry is feminine → banai." },
+      { q: "Did you close the window? — Kia aap ne khirki band ___?", o: ["kiya", "ki", "kiye"], a: 1,
+        why: "Khirki is feminine, and kar → ki." },
+      { q: "I called Sarah — Mai ne Sarah ko call ___", o: ["kiya", "ki", "kiye"], a: 1,
+        why: "Call is feminine here → ki." },
+      { q: "I ate the mango (aam, m) — Mai ne aam ___", o: ["khaya", "khai", "khaye"], a: 0,
+        why: "Aam is masculine → khaya." },
+    ],
+  },
+  huay: {
+    name: "Three uses of huay",
+    urdu: "ہوئے",
+    rule:
+      "HUAY does three different jobs. Tell them apart by what sits before it.\n\n" +
+      "1. Main past verb — after a noun or adjective: Woh raazi huay (they agreed).\n" +
+      "2. Participle 'while ___' — after a verb in -te: Rote huay (while crying).\n" +
+      "3. Elapsed time — after a time phrase: Do din huay (two days ago).",
+    items: [
+      { q: "She spoke while crying — Woh ___ huay boli", o: ["roya", "rote", "roi"], a: 1,
+        why: "'While doing' takes the -te form → rote huay." },
+      { q: "The kids came running — Bache ___ huay aaye", o: ["bhaage", "bhaagte", "bhaaga"], a: 1,
+        why: "-te + huay = while doing." },
+      { q: "Two days have passed — Do din ___", o: ["huay", "hote", "hua"], a: 0,
+        why: "Time phrase + huay = elapsed time." },
+      { q: "They agreed — Woh raazi ___", o: ["huay", "hote", "karte"], a: 0,
+        why: "Adjective + huay = became / happened." },
+      { q: "While looking at the album, tears came — Album ___ huay aansoo aa gaye", o: ["dekha", "dekhte", "dekhi"], a: 1,
+        why: "dekhte huay — while looking." },
+      { q: "We were sitting — Hum ___ huay thay", o: ["baithe", "baithte", "baitha"], a: 0,
+        why: "A STATE (sitting, lying, sleeping) uses the plain form: baithe huay." },
+    ],
+  },
+  conditional: {
+    name: "If / then (agar — tu)",
+    urdu: "اگر / تو",
+    rule:
+      "Past conditionals use the bare -ta/-ti form on BOTH sides — no helping verb.\n\n" +
+      "Agar + [verb]ta/ti ... tu + [verb]ta/ti\n" +
+      "Each half agrees with its own subject.\n" +
+      "Negation inside a conditional is NA, never nahi.",
+    items: [
+      { q: "If I woke up early (I = m) — Agar mai jaldi ___", o: ["uthta", "utha", "uth gaya"], a: 0,
+        why: "Conditional takes the bare -ta form, no helping verb." },
+      { q: "...then I'd have eaten at home — ...tu mai nashta ghar par ___", o: ["khaya", "khata", "kha lia"], a: 1,
+        why: "Both halves use -ta/-ti." },
+      { q: "If covid hadn't happened — Agar covid ___ hota", o: ["nahi", "na", "mat"], a: 1,
+        why: "Inside a conditional, negation is NA." },
+      { q: "If I were in Pakistan (I = f) — Agar mai Pakistan mein ___", o: ["hota", "hoti", "hua"], a: 1,
+        why: "Female speaker → hoti." },
+      { q: "...my Urdu would be very good — ...tu meri Urdu bahot achi ___", o: ["hota", "hoti", "hai"], a: 1,
+        why: "Urdu is feminine → hoti." },
+      { q: "If there had been leftover food — Agar bacha hua khana ___", o: ["hai", "hota", "hua"], a: 1,
+        why: "Conditional → hota." },
+    ],
+  },
+  register: {
+    name: "Aap vs tum",
+    urdu: "آپ / تم",
+    rule:
+      "AAP — parents, aunts and uncles, anyone older, anyone you just met.\n" +
+      "TUM — cousins your age or younger, siblings, close friends.\n\n" +
+      "Aap forms end in -iye / hain. Tum forms end in -o.\n" +
+      "When unsure, use aap. Nobody is ever offended by aap.",
+    items: [
+      { q: "How are you? — to your khala", o: ["Tum kaise ho?", "Aap kaisi hain?", "Aap kaise hain?"], a: 1,
+        why: "Aap for an elder, and kaisi because she's female." },
+      { q: "How are you? — to your cousin (male, same age)", o: ["Aap kaise hain?", "Tum kaise ho?", "Tum kaisi ho?"], a: 1,
+        why: "Tum for a peer; kaise for a male." },
+      { q: "Please speak slowly — to an uncle", o: ["Aaram se bolo", "Aaram se boliye", "Aaram se bola"], a: 1,
+        why: "-iye is the polite command." },
+      { q: "Come here — to your younger brother", o: ["Aaiye", "Aao", "Aaye"], a: 1,
+        why: "Tum command ends in -o." },
+      { q: "Did you eat? — to your grandmother", o: ["Tum ne khana khaya?", "Aap ne khana khaya?", "Tu ne khaya?"], a: 1,
+        why: "Aap with elders, always." },
+      { q: "Send it to me — to a cousin", o: ["Bhej dijiye", "Bhej do", "Bhejna"], a: 1,
+        why: "Casual imperative → bhej do." },
+    ],
+  },
+};
 
 const STORAGE_KEY = "urdu-flashcards-v1";
 
@@ -1083,6 +1353,7 @@ let queue = [];
 let idx = 0;
 let flipped = false;
 let stats = { got: 0, again: 0 };
+let drillKey = null, drillQueue = [], drillIdx = 0, drillPicked = null, drillStats = { right: 0, wrong: 0 };
 
 const app = document.getElementById("app");
 
@@ -1171,7 +1442,29 @@ function renderHome() {
     </section>
   `;
 
+  html += `<h3 class="sec-head">Grammar drills <span>apply the rule, don't memorise it</span></h3>`;
+  Object.entries(DRILLS).forEach(([key, d]) => {
+    const m = drillMastery(key);
+    const pct = Math.round((m.solid / m.total) * 100);
+    html += `
+      <section class="card drill-tile">
+        <div class="deck-head">
+          <div>
+            <span class="deck-urdu">${d.urdu}</span>
+            <h2 class="deck-name">${esc(d.name)}</h2>
+          </div>
+          <span class="deck-count">${m.solid}/${m.total}<br><span class="dim">solid</span></span>
+        </div>
+        <div class="track"><div class="fill" style="width:${pct}%"></div></div>
+        <div class="actions">
+          <button class="btn primary" data-drill="${key}">Drill</button>
+        </div>
+      </section>`;
+  });
+
+  html += `<h3 class="sec-head">Flashcards <span>vocabulary and whole sentences</span></h3>`;
   Object.entries(DECKS).forEach(([key, deck]) => {
+    if (key === "grammar") return;
     const p = progress[key] || {};
     const total = deck.cards.length;
     const mastered = deck.cards.filter((_, i) => (p[i] || 0) >= 2).length;
@@ -1247,6 +1540,9 @@ function renderHome() {
       toggle.classList.toggle("on", speechMode);
     });
   }
+  app.querySelectorAll("[data-drill]").forEach((b) =>
+    b.addEventListener("click", () => startDrill(b.dataset.drill))
+  );
   app.querySelectorAll("[data-start]").forEach((b) =>
     b.addEventListener("click", () => startSession(b.dataset.start, b.dataset.mode))
   );
@@ -1500,6 +1796,143 @@ function renderSession() {
   });
 }
 
+
+// ---------- DRILL LOGIC ----------
+function drillMastery(key) {
+  const p = (progress.drills && progress.drills[key]) || {};
+  const items = DRILLS[key].items;
+  const solid = items.filter((_, i) => (p[i] || 0) >= 2).length;
+  return { solid, total: items.length };
+}
+
+function startDrill(key) {
+  const p = (progress.drills && progress.drills[key]) || {};
+  let idxs = DRILLS[key].items.map((_, i) => i);
+  const weak = idxs.filter((i) => (p[i] || 0) < 2);
+  if (weak.length) idxs = weak;
+  drillKey = key;
+  drillQueue = shuffle(idxs);
+  drillIdx = 0;
+  drillPicked = null;
+  drillStats = { right: 0, wrong: 0 };
+  view = "drill-rule";
+  render();
+}
+
+function answerDrill(choice) {
+  const item = DRILLS[drillKey].items[drillQueue[drillIdx]];
+  const correct = choice === item.a;
+  drillPicked = choice;
+
+  if (!progress.drills) progress.drills = {};
+  if (!progress.drills[drillKey]) progress.drills[drillKey] = {};
+  const cur = progress.drills[drillKey][drillQueue[drillIdx]] || 0;
+  progress.drills[drillKey][drillQueue[drillIdx]] = correct ? Math.min(cur + 1, 3) : 0;
+  bumpStreak();
+  save();
+
+  correct ? drillStats.right++ : drillStats.wrong++;
+  if (!correct) {
+    // a missed item comes back later in the same session
+    const at = Math.min(drillIdx + 3 + Math.floor(Math.random() * 3), drillQueue.length);
+    drillQueue.splice(at, 0, drillQueue[drillIdx]);
+  }
+  render();
+}
+
+function nextDrill() {
+  drillPicked = null;
+  drillIdx++;
+  if (drillIdx >= drillQueue.length) view = "drill-done";
+  render();
+}
+
+function renderDrillRule() {
+  const d = DRILLS[drillKey];
+  app.innerHTML = `
+    <div class="session-top">
+      <button class="btn ghost" id="back">← Decks</button>
+      <span class="counter">${drillQueue.length} to practise</span>
+    </div>
+    <section class="card rule-card">
+      <span class="deck-urdu">${d.urdu}</span>
+      <h2 class="deck-name">${esc(d.name)}</h2>
+      <pre class="rule-text">${esc(d.rule)}</pre>
+      <button class="btn primary wide" id="begin">Start drilling</button>
+    </section>
+    <p class="footer">Read it once, then apply it. The rule comes back every time you slip.</p>
+  `;
+  document.getElementById("back").addEventListener("click", () => { view = "home"; render(); });
+  document.getElementById("begin").addEventListener("click", () => { view = "drill"; render(); });
+}
+
+function renderDrill() {
+  const d = DRILLS[drillKey];
+  const item = d.items[drillQueue[drillIdx]];
+  const answered = drillPicked !== null;
+  const correct = answered && drillPicked === item.a;
+  const pct = (drillIdx / drillQueue.length) * 100;
+
+  app.innerHTML = `
+    <div class="session-top">
+      <button class="btn ghost" id="back">← Decks</button>
+      <span class="counter">${drillIdx + 1} / ${drillQueue.length}</span>
+    </div>
+    <div class="track"><div class="fill" style="width:${pct}%"></div></div>
+
+    <section class="card drill-card">
+      <span class="drill-topic">${esc(d.name)}</span>
+      <p class="drill-q">${esc(item.q)}</p>
+      <div class="opts">
+        ${item.o.map((opt, i) => {
+          let cls = "opt";
+          if (answered) {
+            if (i === item.a) cls += " right";
+            else if (i === drillPicked) cls += " wrong";
+            else cls += " dim-opt";
+          }
+          return `<button class="${cls}" data-opt="${i}"${answered ? " disabled" : ""}>${esc(opt)}</button>`;
+        }).join("")}
+      </div>
+      ${
+        answered
+          ? `<div class="why ${correct ? "ok" : "no"}">
+               <strong>${correct ? "Right." : "Not quite — " + esc(item.o[item.a])}</strong>
+               <p>${esc(item.why)}</p>
+             </div>
+             <button class="btn primary wide" id="next">Next</button>`
+          : ""
+      }
+    </section>
+    ${answered ? "" : `<button class="btn ghost wide" id="showrule">Show the rule again</button>`}
+  `;
+
+  document.getElementById("back").addEventListener("click", () => { view = "home"; render(); });
+  const sr = document.getElementById("showrule");
+  if (sr) sr.addEventListener("click", () => { view = "drill-rule"; render(); });
+  app.querySelectorAll("[data-opt]").forEach((b) =>
+    b.addEventListener("click", () => answerDrill(Number(b.dataset.opt)))
+  );
+  const n = document.getElementById("next");
+  if (n) n.addEventListener("click", nextDrill);
+}
+
+function renderDrillDone() {
+  const total = drillStats.right + drillStats.wrong;
+  const pct = total ? Math.round((drillStats.right / total) * 100) : 0;
+  app.innerHTML = `
+    <div class="center">
+      <p class="urdu-accent">شاباش</p>
+      <h2 class="done-title">${pct}% first try</h2>
+      <p class="done-stats">${drillStats.right} right · ${drillStats.wrong} missed</p>
+      <button class="btn primary" id="again-drill">Drill this again</button>
+      <button class="btn ghost" id="home">Back to decks</button>
+    </div>
+  `;
+  document.getElementById("again-drill").addEventListener("click", () => startDrill(drillKey));
+  document.getElementById("home").addEventListener("click", () => { view = "home"; render(); });
+}
+
 function renderDone() {
   app.innerHTML = `
     <div class="center">
@@ -1520,7 +1953,10 @@ function renderDone() {
 }
 
 function render() {
-  if (view === "session") renderSession();
+  if (view === "drill-rule") renderDrillRule();
+  else if (view === "drill") renderDrill();
+  else if (view === "drill-done") renderDrillDone();
+  else if (view === "session") renderSession();
   else if (view === "done") renderDone();
   else renderHome();
   window.scrollTo(0, 0);

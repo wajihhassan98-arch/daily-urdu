@@ -1383,9 +1383,18 @@ function renderHome() {
       <p class="subtitle">${
         streak > 0
           ? `${streak}-day streak — keep it going`
-          : "Do one or two decks a day. Cards you miss come back sooner."
+          : "One session a day. What you miss comes back sooner."
       }</p>
     </header>
+
+    <section class="card daily">
+      <div class="daily-head">
+        <span class="deck-urdu">آج کی مشق</span>
+        <h2 class="deck-name">Today's mix</h2>
+      </div>
+      <p class="daily-copy">Everything in one go — ${MIX_TARGET - MIX_DRILLS} cards from every deck plus ${MIX_DRILLS} grammar drills, weighted to what you keep missing.</p>
+      <button class="btn primary wide" id="start-daily">Start today's session</button>
+    </section>
 
     <div class="speaker-pick">
       <div class="speaker-copy">
@@ -1540,6 +1549,8 @@ function renderHome() {
       toggle.classList.toggle("on", speechMode);
     });
   }
+  const sd = document.getElementById("start-daily");
+  if (sd) sd.addEventListener("click", startDaily);
   app.querySelectorAll("[data-drill]").forEach((b) =>
     b.addEventListener("click", () => startDrill(b.dataset.drill))
   );
@@ -1797,6 +1808,215 @@ function renderSession() {
 }
 
 
+
+// ---------- DAILY MIX ----------
+// One session that samples everything: weak cards from each deck plus a few
+// grammar drills, so the daily habit is a single tap instead of a decision.
+const MIX_TARGET = 22;      // items per session
+const MIX_DRILLS = 6;       // how many of those are grammar drills
+
+let mixQueue = [], mixIdx = 0, mixStats = { right: 0, wrong: 0 };
+
+// Weak items first, then anything else, so a session always fills up.
+function pickWeak(store, total, want) {
+  const p = store || {};
+  const weak = [], mid = [], solid = [];
+  for (let i = 0; i < total; i++) {
+    const lvl = p[i] || 0;
+    (lvl === 0 ? weak : lvl === 1 ? mid : solid).push(i);
+  }
+  return shuffle(weak).concat(shuffle(mid), shuffle(solid)).slice(0, want);
+}
+
+function buildDailyMix() {
+  const deckKeys = Object.keys(DECKS).filter((k) => k !== "grammar");
+  const drillKeys = Object.keys(DRILLS);
+  const cardsWanted = MIX_TARGET - MIX_DRILLS;
+
+  // spread card slots across decks, biggest decks getting slightly more
+  const per = Math.max(1, Math.floor(cardsWanted / deckKeys.length));
+  let items = [];
+  deckKeys.forEach((k) => {
+    pickWeak(progress[k], DECKS[k].cards.length, per).forEach((i) =>
+      items.push({ kind: "card", deck: k, i })
+    );
+  });
+  // top up if rounding left us short
+  while (items.length < cardsWanted) {
+    const k = deckKeys[Math.floor(Math.random() * deckKeys.length)];
+    const i = Math.floor(Math.random() * DECKS[k].cards.length);
+    if (!items.some((x) => x.kind === "card" && x.deck === k && x.i === i))
+      items.push({ kind: "card", deck: k, i });
+  }
+  items = shuffle(items).slice(0, cardsWanted);
+
+  const drills = [];
+  const perDrill = Math.max(1, Math.round(MIX_DRILLS / drillKeys.length));
+  drillKeys.forEach((k) => {
+    pickWeak((progress.drills || {})[k], DRILLS[k].items.length, perDrill).forEach((i) =>
+      drills.push({ kind: "drill", topic: k, i })
+    );
+  });
+
+  return shuffle(items.concat(shuffle(drills).slice(0, MIX_DRILLS)));
+}
+
+function startDaily() {
+  mixQueue = buildDailyMix();
+  mixIdx = 0;
+  flipped = false;
+  drillPicked = null;
+  mixStats = { right: 0, wrong: 0 };
+  view = "mix";
+  render();
+}
+
+function mixAnswerCard(gotIt) {
+  const it = mixQueue[mixIdx];
+  if (!progress[it.deck]) progress[it.deck] = {};
+  const cur = progress[it.deck][it.i] || 0;
+  progress[it.deck][it.i] = gotIt ? Math.min(cur + 1, 3) : 0;
+  bumpStreak();
+  save();
+  gotIt ? mixStats.right++ : mixStats.wrong++;
+  if (!gotIt) {
+    const at = Math.min(mixIdx + 4 + Math.floor(Math.random() * 4), mixQueue.length);
+    mixQueue.splice(at, 0, it);
+  }
+  flipped = false;
+  mixIdx++;
+  if (mixIdx >= mixQueue.length) view = "mix-done";
+  render();
+}
+
+function mixAnswerDrill(choice) {
+  const it = mixQueue[mixIdx];
+  const item = DRILLS[it.topic].items[it.i];
+  const correct = choice === item.a;
+  drillPicked = choice;
+  if (!progress.drills) progress.drills = {};
+  if (!progress.drills[it.topic]) progress.drills[it.topic] = {};
+  const cur = progress.drills[it.topic][it.i] || 0;
+  progress.drills[it.topic][it.i] = correct ? Math.min(cur + 1, 3) : 0;
+  bumpStreak();
+  save();
+  correct ? mixStats.right++ : mixStats.wrong++;
+  if (!correct) {
+    const at = Math.min(mixIdx + 4 + Math.floor(Math.random() * 3), mixQueue.length);
+    mixQueue.splice(at, 0, it);
+  }
+  render();
+}
+
+function mixNext() {
+  drillPicked = null;
+  flipped = false;
+  mixIdx++;
+  if (mixIdx >= mixQueue.length) view = "mix-done";
+  render();
+}
+
+function renderMix() {
+  const it = mixQueue[mixIdx];
+  const pct = (mixIdx / mixQueue.length) * 100;
+  const head = `
+    <div class="session-top">
+      <button class="btn ghost" id="back">← Decks</button>
+      <span class="counter">${mixIdx + 1} / ${mixQueue.length}</span>
+    </div>
+    <div class="track"><div class="fill" style="width:${pct}%"></div></div>`;
+
+  if (it.kind === "drill") {
+    const d = DRILLS[it.topic];
+    const item = d.items[it.i];
+    const answered = drillPicked !== null;
+    const correct = answered && drillPicked === item.a;
+    app.innerHTML = head + `
+      <section class="card drill-card">
+        <span class="drill-topic">Grammar · ${esc(d.name)}</span>
+        <p class="drill-q">${esc(item.q)}</p>
+        <div class="opts">
+          ${item.o.map((opt, i) => {
+            let cls = "opt";
+            if (answered) {
+              if (i === item.a) cls += " right";
+              else if (i === drillPicked) cls += " wrong";
+              else cls += " dim-opt";
+            }
+            return `<button class="${cls}" data-opt="${i}"${answered ? " disabled" : ""}>${esc(opt)}</button>`;
+          }).join("")}
+        </div>
+        ${answered ? `<div class="why ${correct ? "ok" : "no"}">
+            <strong>${correct ? "Right." : "Not quite — " + esc(item.o[item.a])}</strong>
+            <p>${esc(item.why)}</p>
+          </div>
+          <button class="btn primary wide" id="next">Next</button>` : ""}
+      </section>`;
+    document.getElementById("back").addEventListener("click", () => { view = "home"; render(); });
+    app.querySelectorAll("[data-opt]").forEach((b) =>
+      b.addEventListener("click", () => mixAnswerDrill(Number(b.dataset.opt)))
+    );
+    const n = document.getElementById("next");
+    if (n) n.addEventListener("click", mixNext);
+    return;
+  }
+
+  // flashcard
+  const deck = DECKS[it.deck];
+  const card = getCard(it.deck, it.i);
+  const englishFront = ENGLISH_FRONT.includes(it.deck);
+  const speakable = speechMode && MIC_POSSIBLE;
+  const urduSide = englishFront ? card[1] : card[0];
+  const englishSide = englishFront ? card[0] : card[1];
+  const front = speakable ? englishSide : card[0];
+  const back = speakable ? urduSide : card[1];
+  const frontLabel = speakable || englishFront ? "English" : "Urdu";
+  const backLabel = speakable || englishFront ? "Urdu" : "English";
+
+  app.innerHTML = head + `
+    <div class="card-wrap" id="flip-zone">
+      <div key="m${mixIdx}" class="card-inner${flipped ? " flipped" : ""}" id="card-inner">
+        <div class="face">
+          <span class="face-label">${esc(deck.name)} · ${frontLabel}</span>
+          <p class="card-text${front.length > 90 ? " small" : ""}">${esc(front)}</p>
+          <span class="tap-hint">tap to flip</span>
+        </div>
+        <div class="face back">
+          <span class="face-label">${backLabel}</span>
+          <p class="card-text${back.length > 90 ? " small" : ""}">${esc(back)}</p>
+        </div>
+      </div>
+    </div>
+    <div class="answer-row${flipped ? "" : " hidden"}" id="answer-row">
+      <button class="ans again" id="again">Again</button>
+      <button class="ans got" id="got">Got it</button>
+    </div>`;
+
+  document.getElementById("back").addEventListener("click", () => { view = "home"; render(); });
+  document.getElementById("flip-zone").addEventListener("click", () => {
+    flipped = !flipped;
+    document.getElementById("card-inner").classList.toggle("flipped", flipped);
+    document.getElementById("answer-row").classList.toggle("hidden", !flipped);
+  });
+  document.getElementById("again").addEventListener("click", (e) => { e.stopPropagation(); mixAnswerCard(false); });
+  document.getElementById("got").addEventListener("click", (e) => { e.stopPropagation(); mixAnswerCard(true); });
+}
+
+function renderMixDone() {
+  const total = mixStats.right + mixStats.wrong;
+  const pct = total ? Math.round((mixStats.right / total) * 100) : 0;
+  app.innerHTML = `
+    <div class="center">
+      <p class="urdu-accent">شاباش</p>
+      <h2 class="done-title">Done for today</h2>
+      <p class="done-stats">${mixStats.right} right · ${mixStats.wrong} missed · ${pct}% first try</p>
+      <button class="btn primary" id="again-mix">Another round</button>
+      <button class="btn ghost" id="home">Back to decks</button>
+    </div>`;
+  document.getElementById("again-mix").addEventListener("click", startDaily);
+  document.getElementById("home").addEventListener("click", () => { view = "home"; render(); });
+}
+
 // ---------- DRILL LOGIC ----------
 function drillMastery(key) {
   const p = (progress.drills && progress.drills[key]) || {};
@@ -1953,7 +2173,9 @@ function renderDone() {
 }
 
 function render() {
-  if (view === "drill-rule") renderDrillRule();
+  if (view === "mix") renderMix();
+  else if (view === "mix-done") renderMixDone();
+  else if (view === "drill-rule") renderDrillRule();
   else if (view === "drill") renderDrill();
   else if (view === "drill-done") renderDrillDone();
   else if (view === "session") renderSession();
